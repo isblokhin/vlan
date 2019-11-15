@@ -2,6 +2,7 @@
 
   - hosts: iR
     gather_facts: yes
+    ignore_errors: yes
     remote_user: vagrant
     become: true
     tasks:
@@ -21,14 +22,14 @@
         # nmcli con add type ethernet con-name Team0-port1 ifname eth3 master team0
         # nmcli con add type team-slave con-name Team0-port2 ifname eth4 master team0
         # nmcli connection up id team-team0
-        
-
+       
         # для задания с **
         ip route add 10.10.10.0/24 dev bond0
 
   - hosts: cR
     gather_facts: yes
     remote_user: vagrant
+    ignore_errors: yes 
     become: true
     tasks:
     - name: configure interface
@@ -56,23 +57,32 @@
         ip link set eth5.101 up
         ip route delete default 2>&1 >/dev/null || true
         ip route add default via 192.168.255.1
-    notify:
-    - restart network    
+      
+      notify: restart network    
+
+    handlers:
+    - name: restart network
+      systemd:
+        name: network
+        state: restarted
+
   
   - hosts: tC1
     become: true
+    ignore_errors: yes
     tasks:
     - name: configure interface
-      shell: |
+      shell: "|
         ip link add link eth1 name eth1.100 type vlan id 100 reorder_hdr on
         ip addr add 10.10.10.254/255.255.255.0 dev eth1.100
         ip link set eth1.100 up
         ip route delete default 2>&1 >/dev/null || true
-        ip route add default via 10.10.10.100
+        ip route add default via 10.10.10.100"
 
 
   - hosts: tS1
     become: true
+    ignore_errors: yes
     tasks:
     - name: configure interface 
       shell: |
@@ -86,6 +96,7 @@
 
   - hosts: tC2
     become: true
+    ignore_errors: yes
     tasks:
     - name: configure interface
       shell: |
@@ -98,20 +109,14 @@
 
   - hosts: tS2
     become: true
+    ignore_errors: yes
     tasks:
     - name: configure interface
       shell: |
         ip link add link eth1 name eth1.101 type vlan id 101 reorder_hdr on
         ip addr add 10.10.10.1/255.255.255.0 dev eth1.101
-        ip link set eth1.100 up
+        ip link set eth1.101 up
         ip route delete default 2>&1 >/dev/null || true
         ip route add default via 10.10.10.101
-
-  - name: restart network
-    systemd:
-      name: network
-      state: restarted
-
-
 
 ...
