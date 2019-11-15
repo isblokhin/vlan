@@ -1,0 +1,117 @@
+---
+
+  - hosts: iR
+    gather_facts: yes
+    remote_user: vagrant
+    become: true
+    tasks:
+    - name: configure interface
+      shell: |
+        # bonding
+        nmcli con add type bond con-name bond0 ifname bond0 mode active-backup ip4 192.168.255.1/24
+        nmcli con add type bond-slave ifname eth1 master bond0
+        nmcli con add type bond-slave ifname eth2 master bond0
+        ip link set up bond0
+        
+        # teaming
+        # nmcli connection add type team ifname team0
+        # nmcli con mod team-team0 ipv4.addresses 192.168.254.1/24
+        # nmcli con mod team-team0 ipv4.method manual
+        # nmcli con mod team-team0 ifname team0 config '{"runner": {"name": "loadbalance", "active": true}}'
+        # nmcli con add type ethernet con-name Team0-port1 ifname eth3 master team0
+        # nmcli con add type team-slave con-name Team0-port2 ifname eth4 master team0
+        # nmcli connection up id team-team0
+        
+
+        # для задания с **
+        ip route add 10.10.10.0/24 dev bond0
+
+  - hosts: cR
+    gather_facts: yes
+    remote_user: vagrant
+    become: true
+    tasks:
+    - name: configure interface
+      shell: |
+        # bonding
+        nmcli con add type bond con-name bond0 ifname bond0 mode active-backup ip4 192.168.255.2/24
+        nmcli con add type bond-slave ifname eth1 master bond0
+        nmcli con add type bond-slave ifname eth2 master bond0
+        
+        # teaming
+        # nmcli connection add type team ifname team0
+        # nmcli con mod team-team0 ipv4.addresses 192.168.254.2/24
+        # nmcli con mod team-team0 ipv4.method manual
+        # nmcli con mod team-team0 ifname team0 config '{"runner": {"name": "loadbalance", "active": true}}'
+        # nmcli con add type ethernet con-name Team0-port1 ifname eth3 master team0
+        # nmcli con add type team-slave con-name Team0-port2 ifname eth4 master team0
+        # nmcli connection up id team-team0
+        
+        # для задания с **
+        ip link add link eth5 name eth5.100 type vlan id 100 reorder_hdr on
+        ip addr add 10.10.10.100/255.255.255.0 dev eth5.100
+        ip link set eth5.100 up
+        ip link add link eth5 name eth5.101 type vlan id 101 reorder_hdr on
+        ip addr add 10.10.10.101/255.255.255.0 dev eth5.101
+        ip link set eth5.101 up
+        ip route delete default 2>&1 >/dev/null || true
+        ip route add default via 192.168.255.1
+    notify:
+    - restart network    
+  
+  - hosts: tC1
+    become: true
+    tasks:
+    - name: configure interface
+      shell: |
+        ip link add link eth1 name eth1.100 type vlan id 100 reorder_hdr on
+        ip addr add 10.10.10.254/255.255.255.0 dev eth1.100
+        ip link set eth1.100 up
+        ip route delete default 2>&1 >/dev/null || true
+        ip route add default via 10.10.10.100
+
+
+  - hosts: tS1
+    become: true
+    tasks:
+    - name: configure interface 
+      shell: |
+        ip link add link eth1 name eth1.100 type vlan id 100 reorder_hdr on
+        ip addr add 10.10.10.1/255.255.255.0 dev eth1.100
+        ip link set eth1.100 up
+        ip route delete default 2>&1 >/dev/null || true
+        ip route add default via 10.10.10.100
+
+
+
+  - hosts: tC2
+    become: true
+    tasks:
+    - name: configure interface
+      shell: |
+        ip link add link eth1 name eth1.101 type vlan id 101 reorder_hdr on
+        ip addr add 10.10.10.254/255.255.255.0 dev eth1.101
+        ip link set eth1.100 up
+        ip route delete default 2>&1 >/dev/null || true
+        ip route add default via 10.10.10.101
+
+
+  - hosts: tS2
+    become: true
+    tasks:
+    - name: configure interface
+      shell: |
+        ip link add link eth1 name eth1.101 type vlan id 101 reorder_hdr on
+        ip addr add 10.10.10.1/255.255.255.0 dev eth1.101
+        ip link set eth1.100 up
+        ip route delete default 2>&1 >/dev/null || true
+        ip route add default via 10.10.10.101
+
+  - name: restart network
+    systemd:
+      name: network
+      state: restarted
+
+
+
+...
