@@ -102,7 +102,7 @@
       shell: |
         ip link add link eth1 name eth1.101 type vlan id 101 reorder_hdr on
         ip addr add 10.10.10.254/255.255.255.0 dev eth1.101
-        ip link set eth1.100 up
+        ip link set eth1.101 up
         ip route delete default 2>&1 >/dev/null || true
         ip route add default via 10.10.10.101
 
